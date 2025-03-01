@@ -24,22 +24,28 @@ def get_sol_price():
 input_stike_price = 150
 input_market_long_put_price = 22.68
 
-def calculate_lower_bound_price(input_strike_price, market_long_put_price):
-    current_sol_price = get_sol_price()
+def calculate_lower_bound_price(input_strike_price, market_long_put_price, current_sol_price):
     break_even_price = input_strike_price - market_long_put_price
     """Calculate lower bound price for a long put position"""
     return (4*break_even_price)-(3*current_sol_price) 
 
-def cal_percentage(lower_bound_price, current_sol_price):
+def calculate_upper_bound_price(input_strike_price, market_long_put_price, current_sol_price):
+    return ((current_sol_price+market_long_put_price)*2)-current_sol_price
+
+def cal_lower_bound_percentage(lower_bound_price, current_sol_price):
     return ((lower_bound_price-current_sol_price)/current_sol_price)*100
 
+def cal_upper_bound_percentage(upper_bound_price, current_sol_price):
+    return ((upper_bound_price-current_sol_price)/current_sol_price)*100
+
+
 # Streamlit UI
-st.title("DLMM LP lower bound price calculator")
+st.title("DLMM LP position range calculator")
 
 # Display current SOL price
 current_sol_price = get_sol_price()
 if current_sol_price:
-    st.metric("Current SOL Price", f"${current_sol_price:.2f} (real time)")
+    st.metric("Current SOL Price", f"${current_sol_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
@@ -51,19 +57,18 @@ with col2:
 # Calculate button
 if st.button("Calculate Range"):
     if current_sol_price:
-        lower_bound = calculate_lower_bound_price(strike_price, put_price)
-        percentage = cal_percentage(lower_bound, current_sol_price)
+        lower_bound = calculate_lower_bound_price(strike_price, put_price, current_sol_price)
+        upper_bound = calculate_upper_bound_price(strike_price, put_price, current_sol_price)
+        lower_bound_percentage = cal_lower_bound_percentage(lower_bound, current_sol_price)
+        upper_bound_percentage = cal_upper_bound_percentage(upper_bound, current_sol_price)
         
         # Display results
         st.subheader("Results")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Lower Bound Price", f"${lower_bound:.2f}")
+            st.metric("Lower Bound Price", f"${lower_bound:.2f}" , delta=f"{lower_bound_percentage:.2f}%")
         with col2:
-            st.metric("Percentage from Current Price", f"{percentage:.2f}%")
-        
-        # Additional information
-        st.info(f"Break-even Price: ${strike_price - put_price:.2f}")
+            st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}" , delta=f"{upper_bound_percentage:.2f}%")
 
 # Add a separator
 st.markdown("---")
@@ -81,7 +86,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Add some space at the bottom
+# Add some space at the bottom``
 st.markdown("<br>", unsafe_allow_html=True)
 
 
