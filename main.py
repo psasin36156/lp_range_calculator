@@ -56,14 +56,14 @@ def cal_upper_bound_percentage(upper_bound_price, current_sol_price):
     return ((upper_bound_price-current_sol_price)/current_sol_price)*100
 
 # Streamlit UI
-st.title("DLMM LP position range calculator")
+st.title("LP position range calculator")
 
 # Display current SOL price
 current_sol_price = get_sol_price()
 current_eth_price = get_eth_price()
 
 if current_sol_price:
-    st.metric("Current SOL Price", f"${current_sol_price:.2f}")
+    st.metric("Current SOL Price (LP 1 SOL:{current_sol_price:.2f}$)", f"${current_sol_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
@@ -92,7 +92,7 @@ if st.button("Calculate Range", key="calculate_sol"):
 st.markdown("---")
 
 if current_eth_price:
-    st.metric("Current ETH Price", f"${current_eth_price:.2f}")
+    st.metric("Current ETH Price (LP 1 ETH:{current_eth_price:.2f}$)", f"${current_eth_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
