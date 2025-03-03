@@ -20,13 +20,30 @@ def get_sol_price():
         except Exception as e2:
             st.error(f"Error fetching SOL price: {e2}")
             return None
-    
-input_stike_price = 150
-input_market_long_put_price = 22.68
 
+def get_eth_price():
+    """Fetch current ETH price from Binance API"""
+    url = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSD"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        return float(data['price'])
+    except Exception as e:
+        # Try backup API if Binance fails
+        try:
+            url = "https://api.kraken.com/0/public/Ticker?pair=ETHUSD"
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return float(data['result']['XETHZUSD']['c'][0])
+        except Exception as e2:
+            st.error(f"Error fetching ETH price: {e2}")
+            return None
+        
+    
 def calculate_lower_bound_price(input_strike_price, market_long_put_price, current_sol_price):
     break_even_price = input_strike_price - market_long_put_price
-    """Calculate lower bound price for a long put position"""
     return (4*break_even_price)-(3*current_sol_price) 
 
 def calculate_upper_bound_price(input_strike_price, market_long_put_price, current_sol_price):
@@ -38,24 +55,25 @@ def cal_lower_bound_percentage(lower_bound_price, current_sol_price):
 def cal_upper_bound_percentage(upper_bound_price, current_sol_price):
     return ((upper_bound_price-current_sol_price)/current_sol_price)*100
 
-
 # Streamlit UI
 st.title("DLMM LP position range calculator")
 
 # Display current SOL price
 current_sol_price = get_sol_price()
+current_eth_price = get_eth_price()
+
 if current_sol_price:
     st.metric("Current SOL Price", f"${current_sol_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
 with col1:
-    strike_price = st.number_input("Strike Price ($)", min_value=0.0, value=150.0, step=0.1)
+    strike_price = st.number_input("SOL Strike Price ($)", min_value=0.0, value=150.0, step=0.1)
 with col2:
-    put_price = st.number_input("Market Long Put Price ($)", min_value=0.0, value=22.68, step=0.01)
+    put_price = st.number_input("SOL Market Long Put Price ($)", min_value=0.0, value=22.68, step=0.01)
 
 # Calculate button
-if st.button("Calculate Range"):
+if st.button("Calculate Range", key="calculate_sol"):
     if current_sol_price:
         lower_bound = calculate_lower_bound_price(strike_price, put_price, current_sol_price)
         upper_bound = calculate_upper_bound_price(strike_price, put_price, current_sol_price)
@@ -66,13 +84,46 @@ if st.button("Calculate Range"):
         st.subheader("Results")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Lower Bound Price", f"${lower_bound:.2f}" , delta=f"{lower_bound_percentage:.2f}%")
+            st.metric("Lower Bound Price", f"${lower_bound:.2f}", delta=f"{lower_bound_percentage:.2f}%")
         with col2:
-            st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}" , delta=f"{upper_bound_percentage:.2f}%")
+            st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}", delta=f"{upper_bound_percentage:.2f}%")
 
 # Add a separator
 st.markdown("---")
 
+if current_eth_price:
+    st.metric("Current ETH Price", f"${current_eth_price:.2f}")
+
+# Input widgets
+col1, col2 = st.columns(2)
+with col1:
+    strike_price = st.number_input("ETH Strike Price ($)", 
+                                  min_value=0,
+                                  value=2300,
+                                  step=10)
+with col2:
+    put_price = st.number_input("ETH Market Long Put Price ($)", 
+                               min_value=0,
+                               value=129,
+                               step=1)
+
+# Calculate button
+if st.button("Calculate Range", key="calculate_eth"):
+    if current_eth_price:
+        lower_bound = calculate_lower_bound_price(strike_price, put_price, current_eth_price)
+        upper_bound = calculate_upper_bound_price(strike_price, put_price, current_eth_price)
+        lower_bound_percentage = cal_lower_bound_percentage(lower_bound, current_eth_price)
+        upper_bound_percentage = cal_upper_bound_percentage(upper_bound, current_eth_price)
+        
+        # Display results
+        st.subheader("Results")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Lower Bound Price", f"${lower_bound:.2f}", delta=f"{lower_bound_percentage:.2f}%")
+        with col2:
+            st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}", delta=f"{upper_bound_percentage:.2f}%")
+
+st.markdown("---")
 # Footer with contacts and profile image
 st.markdown("""
 <div style='text-align: center'>
