@@ -210,7 +210,7 @@ if st.button("Calculate Range", key="calculate_eth"):
 
         # Add equity chart
         fig,max_loss = create_equity_chart(strike_price, put_price, current_eth_price)
-        st.code(f"LP 1 ETH : {current_eth_price:.2f} USD\nLong Put 2 ETH at Strike Price : {strike_price} USD \nMax loss : {max_loss*100:.2f}%")
+        st.code(f"LP 1 ETH : {current_eth_price:.2f} USD (TOTAL {current_eth_price*2:.2f} $USD)\nLong Put 2 ETH at Strike Price : {strike_price} (TOTAL {put_price*2:.2f} $USD)\nMax loss : {max_loss*100:.2f}% \nTotal initial investment : {current_eth_price*2+put_price*2:.2f} $USD")
         st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
