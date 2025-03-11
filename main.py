@@ -55,6 +55,7 @@ def cal_lower_bound_percentage(lower_bound_price, current_sol_price):
 def cal_upper_bound_percentage(upper_bound_price, current_sol_price):
     return ((upper_bound_price-current_sol_price)/current_sol_price)*100
 
+
 # Streamlit UI
 st.title("LP position range calculator")
 
