@@ -1,5 +1,8 @@
 import streamlit as st
 import requests
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 
 def get_sol_price():
     """Fetch current SOL price from Binance API"""
@@ -47,7 +50,7 @@ def calculate_lower_bound_price(input_strike_price, market_long_put_price, curre
     return (4*break_even_price)-(3*current_sol_price) 
 
 def calculate_upper_bound_price(input_strike_price, market_long_put_price, current_sol_price):
-    return ((current_sol_price+market_long_put_price)*2)-current_sol_price
+    return ((current_sol_price+market_long_put_price+market_long_put_price)*2)-current_sol_price
 
 def cal_lower_bound_percentage(lower_bound_price, current_sol_price):
     return ((lower_bound_price-current_sol_price)/current_sol_price)*100
@@ -55,8 +58,84 @@ def cal_lower_bound_percentage(lower_bound_price, current_sol_price):
 def cal_upper_bound_percentage(upper_bound_price, current_sol_price):
     return ((upper_bound_price-current_sol_price)/current_sol_price)*100
 
+def cal_equity_chart(strike_price, option_price, current_price, new_price):
+    lower_bound = calculate_lower_bound_price(strike_price, option_price, current_price)
+    upper_bound = calculate_upper_bound_price(strike_price, option_price, current_price)
+    if new_price <= strike_price and new_price <= current_price:
+        option_pnl = (strike_price - new_price - option_price) * 2
+        if new_price <= lower_bound:
+            sol_pnl = (new_price-current_price)
+            avg_price = (lower_bound + current_price)/2
+            usd_pnl = new_price-avg_price
+            ratio = 1
+        else:
+            ratio = abs(((new_price - current_price)/(lower_bound - current_price)))
+            sol_pnl = (new_price-current_price)
+            usd_pnl = (((new_price + current_price)/2)-current_price)*ratio
+    elif new_price <= strike_price and new_price >= current_price:
+        option_pnl = (strike_price - new_price - option_price) * 2
+        ratio = abs(((new_price - current_price)/(upper_bound - current_price)))
+        usd_pnl = 0
+        sol_pnl = (((new_price + current_price)/2)-current_price)*ratio
+    elif new_price >= strike_price and new_price <= current_price:
+        option_pnl = -(option_price * 2)
+        ratio = abs(((new_price - current_price)/(lower_bound - current_price)))
+        usd_pnl = (((new_price + current_price)/2)-current_price)*ratio
+        sol_pnl = (new_price-current_price)
+    elif new_price >= strike_price and new_price >= current_price:
+        option_pnl = -(option_price * 2)
+        if new_price >= upper_bound:
+            usd_pnl = 0
+            sol_pnl = ((upper_bound + current_price)/2)-current_price
+            ratio = 1
+        else:
+            ratio = abs(((new_price - current_price)/(upper_bound - current_price)))
+            sol_pnl = (((new_price + current_price)/2)-current_price)*ratio
+            usd_pnl = 0
+    return (option_pnl + sol_pnl + usd_pnl)/(current_price*2)
 
+def create_equity_chart(strike_price, option_price, current_price):
+    # Generate price range for x-axis
+    lower_bound = calculate_lower_bound_price(strike_price, option_price, current_price)
+    upper_bound = calculate_upper_bound_price(strike_price, option_price, current_price)
+    price_range = np.linspace(lower_bound * 0.75, upper_bound * 1.25, 300)
+    equity_values = [cal_equity_chart(strike_price, option_price, current_price, price) for price in price_range]
+    
+    # Create DataFrame for the chart
+    df = pd.DataFrame({
+        'Price': price_range,
+        'Equity': equity_values
+    })
+
+    max_loss = df['Equity'].min()
+    
+    # Create the plot using plotly
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['Price'], y=df['Equity'] * 100, name='PNL %'))
+    
+    # Add vertical lines for important price levels
+    fig.add_vline(x=current_price, line_dash="dash", annotation_text="Current Price" , line_color='green' , )
+    fig.add_vline(x=strike_price, line_dash="dash", annotation_text="Strike Price" , line_color='blue')
+    fig.add_vline(x=lower_bound, line_dash="dash", annotation_text="Lower Bound" , line_color='red')
+    fig.add_vline(x=upper_bound, line_dash="dash", annotation_text="Upper Bound" , line_color='red')
+    
+
+    # Update layout
+    fig.update_layout(
+        title='Equity Chart',
+        xaxis_title='Price($)',
+        yaxis_title='PNL (%)',
+        hovermode='x unified',
+        xaxis_range=[lower_bound * 0.75, upper_bound * 1.25]
+    )
+    
+    return fig,max_loss
+
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
 # Streamlit UI
+
 st.title("LP position range calculator")
 
 # Display current SOL price
@@ -64,7 +143,7 @@ current_sol_price = get_sol_price()
 current_eth_price = get_eth_price()
 
 if current_sol_price:
-    st.metric(f"Current SOL Price (LP 1 SOL:{current_sol_price:.2f}$)", f"${current_sol_price:.2f}")
+    st.metric(f"Current SOL Price", f"${current_sol_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
@@ -89,11 +168,16 @@ if st.button("Calculate Range", key="calculate_sol"):
         with col2:
             st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}", delta=f"{upper_bound_percentage:.2f}%")
 
+        # Add equity chart
+        fig,max_loss = create_equity_chart(strike_price, put_price, current_sol_price)
+        st.code(f"LP 1 SOL : {current_sol_price:.2f} USD (TOTAL {current_sol_price*2:.2f} $USD)\nLong Put 2 SOL at Strike Price : {strike_price} (TOTAL {put_price*2:.2f} $USD)\nMax loss : {max_loss*100:.2f}% \nTotal initial investment : {current_sol_price*2+put_price*2:.2f} $USD")
+        st.plotly_chart(fig, use_container_width=True)
+
 # Add a separator
 st.markdown("---")
 
 if current_eth_price:
-    st.metric(f"Current ETH Price (LP 1 ETH:{current_eth_price:.2f}$)", f"${current_eth_price:.2f}")
+    st.metric(f"Current ETH Price", f"${current_eth_price:.2f}")
 
 # Input widgets
 col1, col2 = st.columns(2)
@@ -123,6 +207,11 @@ if st.button("Calculate Range", key="calculate_eth"):
             st.metric("Lower Bound Price", f"${lower_bound:.2f}", delta=f"{lower_bound_percentage:.2f}%")
         with col2:
             st.metric("Upper Bound Price (break-even with long_put_premium )", f"${upper_bound:.2f}", delta=f"{upper_bound_percentage:.2f}%")
+
+        # Add equity chart
+        fig,max_loss = create_equity_chart(strike_price, put_price, current_eth_price)
+        st.code(f"LP 1 ETH : {current_eth_price:.2f} USD\nLong Put 2 ETH at Strike Price : {strike_price} USD \nMax loss : {max_loss*100:.2f}%")
+        st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 # Footer with contacts and profile image
