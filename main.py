@@ -114,10 +114,16 @@ def create_equity_chart(strike_price, option_price, current_price):
     fig.add_trace(go.Scatter(x=df['Price'], y=df['Equity'] * 100, name='PNL %'))
     
     # Add vertical lines for important price levels
-    fig.add_vline(x=current_price, line_dash="dash", annotation_text="Current Price" , line_color='green' , )
-    fig.add_vline(x=strike_price, line_dash="dash", annotation_text="Strike Price" , line_color='blue')
-    fig.add_vline(x=lower_bound, line_dash="dash", annotation_text="Lower Bound" , line_color='red')
-    fig.add_vline(x=upper_bound, line_dash="dash", annotation_text="Upper Bound" , line_color='red')
+    if current_price > strike_price:
+        fig.add_vline(x=current_price, line_dash="dash", annotation_text="Current" , line_color='green' , annotation_position='top right')
+        fig.add_vline(x=strike_price, line_dash="dash", annotation_text="Strike" , line_color='blue' , annotation_position='top left')
+        fig.add_vline(x=lower_bound, line_dash="dash", annotation_text="Lower Bound" , line_color='red' , annotation_position='top left')
+        fig.add_vline(x=upper_bound, line_dash="dash", annotation_text="Upper Bound" , line_color='red' , annotation_position='top right')
+    else:
+        fig.add_vline(x=current_price, line_dash="dash", annotation_text="Current" , line_color='green' , annotation_position='top left')
+        fig.add_vline(x=strike_price, line_dash="dash", annotation_text="Strike" , line_color='blue' , annotation_position='top right')
+        fig.add_vline(x=lower_bound, line_dash="dash", annotation_text="Lower Bound" , line_color='red' , annotation_position='top left')
+        fig.add_vline(x=upper_bound, line_dash="dash", annotation_text="Upper Bound" , line_color='red' , annotation_position='top right')
     
 
     # Update layout
